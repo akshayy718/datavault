@@ -1,7 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ?? (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://datavault-api-w0sn.onrender.com/api/v1"
-    : "http://localhost:8000/api/v1");
+// In Next.js, NEXT_PUBLIC_ variables are replaced at BUILD TIME.
+// If the variable wasn't set when Vercel built the app, it becomes undefined.
+// We hardcode the production URL as the fallback so it always works
+// regardless of whether the env var was set during the Vercel build.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-w0sn.onrender.com/api/v1";
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 export function getToken(): string | null {

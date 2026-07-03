@@ -8,11 +8,8 @@ interface QRPanelProps {
   isGenerating: boolean;
 }
 
-const BACKEND_ORIGIN = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace("/api/v1", "")
-  : (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://datavault-api-w0sn.onrender.com"
-    : "http://localhost:8000");
+const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-w0sn.onrender.com/api/v1")
+  .replace("/api/v1", "");
 
 export function QRPanel({ token, isGenerating }: QRPanelProps) {
   const [copied, setCopied] = useState(false);

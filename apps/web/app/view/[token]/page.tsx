@@ -14,11 +14,8 @@ interface ViewData {
     | { kind: "multi";  items: Record<string, string>[] };
 }
 
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace("/api/v1", "")
-  : (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? "https://datavault-api-w0sn.onrender.com"
-    : "http://localhost:8000");
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-w0sn.onrender.com/api/v1")
+  .replace("/api/v1", "");
 
 // ─── Data fetching hook ───────────────────────────────────────────────────────
 function useViewData(token: string) {
