@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Auth
     jwt_secret: str = "change-me-in-env"
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expiry_minutes: int = 15
+    jwt_access_token_expiry_minutes: int = 1440  # 24 hours — was 15min which caused mid-session logouts
     jwt_refresh_token_expiry_days: int = 7
 
     # Google login -- the OAuth Client ID configured in Google Cloud Console

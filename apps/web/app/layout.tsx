@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
+import { Providers } from "@/app/providers";
 
 export const metadata: Metadata = {
   title: "DataVault — Transform Data Into Experiences",
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="bg-background text-white antialiased">{children}</body>
+      <body className="bg-background text-white antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

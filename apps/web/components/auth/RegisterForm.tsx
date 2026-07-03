@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { auth, setTokens } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
 interface RegisterFormProps {
@@ -13,6 +13,7 @@ interface RegisterFormProps {
 
 export function RegisterForm({ onSwitch }: RegisterFormProps) {
   const router = useRouter();
+  const { register } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,9 +29,7 @@ export function RegisterForm({ onSwitch }: RegisterFormProps) {
     }
     setLoading(true);
     try {
-      await auth.signup(email, password, name);
-      const res = await auth.login(email, password);
-      setTokens(res.data.access_token, res.data.refresh_token);
+      await register(email, password, name);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");

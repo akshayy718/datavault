@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 import { ProductPreview } from "@/components/auth/ProductPreview";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { RegisterForm } from "@/components/auth/RegisterForm";
@@ -10,6 +12,15 @@ type AuthMode = "login" | "register" | "forgot";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>("login");
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  // If already authenticated, skip the auth screen entirely
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard");
+    }
+  }, [loading, user, router]);
 
   return (
     <div className="min-h-screen bg-[#08090A] flex">

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { SelectionModeBar, SelectMode } from "@/components/select/SelectionModeBar";
 import { SelectionCard } from "@/components/select/SelectionCard";
 import { FilterBuilder } from "@/components/select/FilterBuilder";
@@ -23,6 +24,7 @@ const DEMO_ROWS = [
 ];
 
 export default function SelectPage() {
+  const { user, loading } = useRequireAuth();
   const router = useRouter();
   const [mode, setMode] = useState<SelectMode>("row");
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
@@ -105,11 +107,18 @@ export default function SelectPage() {
     router.push("/share");
   }
 
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-[#08090A] flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-[#00E6A7]/20 border-t-[#00E6A7] animate-spin" />
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-[#08090A] flex flex-col">
       <Navbar />
 
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
         {/* ── Left: Cards grid ── */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Toolbar */}
@@ -193,7 +202,7 @@ export default function SelectPage() {
         </div>
 
         {/* ── Right: Live preview panel ── */}
-        <div className="w-72 shrink-0 border-l border-white/[0.06] flex flex-col px-5 py-6 overflow-y-auto">
+        <div className="w-full lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-white/[0.06] flex flex-col px-4 sm:px-5 py-6 lg:overflow-y-auto">
           <PreviewPanel
             selectedRows={previewRows}
             selectedCols={Array.from(selectedCols)}

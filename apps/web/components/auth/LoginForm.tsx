@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { auth, setTokens } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 
 interface LoginFormProps {
@@ -13,6 +13,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSwitch }: LoginFormProps) {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,8 +24,7 @@ export function LoginForm({ onSwitch }: LoginFormProps) {
     setError("");
     setLoading(true);
     try {
-      const res = await auth.login(email, password);
-      setTokens(res.data.access_token, res.data.refresh_token);
+      await login(email, password);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

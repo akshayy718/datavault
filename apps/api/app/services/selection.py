@@ -39,10 +39,28 @@ def extract_selection(rows: list[dict], selection_type: str, selection_spec: dic
         return {"kind": "single", "fields": {column: rows[idx][column]}}
 
     if selection_type == "column":
-        column = selection_spec.get("column")
-        if not rows or column not in rows[0]:
-            raise SelectionError(f"Column '{column}' does not exist in this dataset.")
-        return {"kind": "multi", "items": [{column: r[column]} for r in rows]}
+        # Supports BOTH single-column and multi-column selection:
+        #   {"column": "Name"}                       -> one column (legacy)
+        #   {"columns": ["Name", "Email", "Title"]}  -> several columns
+        # When the user picks multiple columns in the UI, we want each row to
+        # keep ALL of those columns (not just the first) -- that's what makes
+        # "I selected Name, Department, Title, Email" actually show all four.
+        columns = selection_spec.get("columns")
+        single = selection_spec.get("column")
+
+        if columns:  # multi-column path
+            if not rows:
+                raise SelectionError("This dataset has no rows to select from.")
+            missing = [c for c in columns if c not in rows[0]]
+            if missing:
+                raise SelectionError(f"Column(s) {missing} do not exist in this dataset.")
+            # For each row, keep only the selected columns, in the chosen order
+            return {"kind": "multi", "items": [{c: r[c] for c in columns} for r in rows]}
+
+        # single-column path (unchanged, keeps old shares working)
+        if not rows or single not in rows[0]:
+            raise SelectionError(f"Column '{single}' does not exist in this dataset.")
+        return {"kind": "multi", "items": [{single: r[single]} for r in rows]}
 
     if selection_type == "range":
         indices = selection_spec.get("row_indices", [])

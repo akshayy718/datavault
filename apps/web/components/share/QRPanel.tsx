@@ -8,10 +8,20 @@ interface QRPanelProps {
   isGenerating: boolean;
 }
 
+// Reads the backend URL from environment variable so it works in both
+// local development (localhost:8000) and production (your Render URL).
+const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1")
+  .replace("/api/v1", "");
+
 export function QRPanel({ token, isGenerating }: QRPanelProps) {
   const [copied, setCopied] = useState(false);
 
-  const shareUrl = token ? `http://localhost:8000/view/${token}` : null;
+  // The shareable link points to the FRONTEND recipient card (port 3000),
+  // which fetches the data and renders the premium experience -- not the
+  // backend's raw JSON endpoint (port 8000). At deployment this becomes
+  // the real public frontend domain.
+  const frontendOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const shareUrl = token ? `${frontendOrigin}/view/${token}` : null;
 
   function copyLink() {
     if (!shareUrl) return;
@@ -50,32 +60,14 @@ export function QRPanel({ token, isGenerating }: QRPanelProps) {
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="flex flex-col items-center gap-4"
             >
-              {/* QR image from backend */}
+              {/* Real QR image from backend */}
               <div className="relative rounded-2xl border border-[#00E6A7]/20 bg-white p-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`http://localhost:8000/static/qr/${token}.png`}
+                  src={`${BACKEND_ORIGIN}/static/qr/${token}.png`}
                   alt="QR Code"
                   className="h-32 w-32"
-                  onError={(e) => {
-                    // Fallback: show a mock QR grid if backend isn't connected
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
                 />
-                {/* Fallback mock QR */}
-                <div className="h-32 w-32 grid grid-cols-7 gap-[2px] p-1 absolute inset-3">
-                  {Array.from({ length: 49 }).map((_, i) => {
-                    const corners = [0,1,2,3,4,5,6,7,13,14,20,21,27,28,29,30,31,32,33,34,35,41,42,48];
-                    const isDark = corners.includes(i) || Math.random() > 0.55;
-                    return (
-                      <div key={i} className="rounded-[1px]" style={{ background: isDark ? "#08090A" : "transparent" }} />
-                    );
-                  })}
-                </div>
-                {/* Corner marks */}
-                <div className="absolute top-4 left-4 h-6 w-6 border-2 border-[#08090A] rounded-sm" />
-                <div className="absolute top-4 right-4 h-6 w-6 border-2 border-[#08090A] rounded-sm" />
-                <div className="absolute bottom-4 left-4 h-6 w-6 border-2 border-[#08090A] rounded-sm" />
               </div>
               <p className="text-xs text-[#9CA3AF] text-center">Scan to view on any device</p>
             </motion.div>
@@ -107,14 +99,35 @@ export function QRPanel({ token, isGenerating }: QRPanelProps) {
               {copied ? <Check className="h-3.5 w-3.5 text-[#00E6A7]" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copied!" : "Copy link"}
             </button>
-            <a
-              href={`http://localhost:8000/static/qr/${token}.png`}
-              download
+            <button
+              onClick={async () => {
+                // Fetch the image as a blob first, then trigger download.
+                // This is needed because the `download` attribute on <a> only
+                // works when the file is on the same domain as the page.
+                // Since the QR is on localhost:8000 and the page is on
+                // localhost:3000, we must fetch it ourselves and create a
+                // temporary object URL to force the browser to download it
+                // instead of just opening it in a new tab / fullscreen.
+                try {
+                  const res = await fetch(`${BACKEND_ORIGIN}/static/qr/${token}.png`);
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `datavault-qr-${token}.png`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch {
+                  alert("Download failed. Please right-click the QR image and choose Save As.");
+                }
+              }}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 text-xs text-[#9CA3AF] hover:border-white/15 hover:text-white transition-all duration-200"
             >
               <Download className="h-3.5 w-3.5" />
               Download
-            </a>
+            </button>
           </motion.div>
         )}
       </div>

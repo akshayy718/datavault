@@ -1,24 +1,58 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
-function getToken(): string | null {
+// ─── Token storage ────────────────────────────────────────────────────────────
+export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("dv_access_token");
 }
-
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("dv_refresh_token");
+}
 export function setTokens(access: string, refresh: string) {
   localStorage.setItem("dv_access_token", access);
   localStorage.setItem("dv_refresh_token", refresh);
 }
-
 export function clearTokens() {
   localStorage.removeItem("dv_access_token");
   localStorage.removeItem("dv_refresh_token");
 }
 
+// ─── Core request with automatic token refresh ────────────────────────────────
+// This is the key fix for "Invalid or expired token" errors.
+// When any request gets a 401, we automatically try to get a new access token
+// using the refresh token (which lasts 7 days), then retry the original request.
+// If the refresh also fails, we clear tokens and the auth hook logs the user out.
+let isRefreshing = false;
+let refreshQueue: Array<(token: string) => void> = [];
+
+async function doRefresh(): Promise<string> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) throw new Error("No refresh token available");
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!res.ok) {
+    clearTokens();
+    throw new Error("Session expired. Please sign in again.");
+  }
+
+  const data = await res.json();
+  const newAccess = data.data.access_token;
+  const newRefresh = data.data.refresh_token;
+  setTokens(newAccess, newRefresh);
+  return newAccess;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
-  authenticated = true
+  authenticated = true,
+  isRetry = false
 ): Promise<T> {
   const headers: Record<string, string> = {
     ...(options.body && !(options.body instanceof FormData)
@@ -34,6 +68,31 @@ async function request<T>(
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
+  // Auto-refresh on 401 (expired token), but only once to avoid infinite loops
+  if (res.status === 401 && authenticated && !isRetry) {
+    try {
+      let newToken: string;
+      if (isRefreshing) {
+        // Another request is already refreshing — queue this one
+        newToken = await new Promise<string>(resolve => {
+          refreshQueue.push(resolve);
+        });
+      } else {
+        isRefreshing = true;
+        newToken = await doRefresh();
+        refreshQueue.forEach(cb => cb(newToken));
+        refreshQueue = [];
+        isRefreshing = false;
+      }
+      // Retry the original request with the new token
+      return request<T>(path, options, authenticated, true);
+    } catch {
+      isRefreshing = false;
+      refreshQueue = [];
+      throw new Error("Session expired. Please sign in again.");
+    }
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail ?? `HTTP ${res.status}`);
@@ -43,7 +102,7 @@ async function request<T>(
   return res.json();
 }
 
-// ---- Auth ----
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 export const auth = {
   signup: (email: string, password: string, name: string) =>
     request<{ data: { id: string; email: string; name: string } }>(
@@ -60,7 +119,7 @@ export const auth = {
   me: () => request<{ data: { id: string; email: string; name: string } }>("/auth/me"),
 };
 
-// ---- Datasets ----
+// ─── Datasets ─────────────────────────────────────────────────────────────────
 export const datasets = {
   list: () => request<{ data: Dataset[] }>("/datasets"),
   upload: (file: File) => {
@@ -71,7 +130,7 @@ export const datasets = {
   getRows: (id: string) => request<{ data: DatasetRow[] }>(`/datasets/${id}/rows`),
 };
 
-// ---- Shares ----
+// ─── Shares ───────────────────────────────────────────────────────────────────
 export const shares = {
   create: (payload: CreateSharePayload) =>
     request<{ data: Share }>("/shares", { method: "POST", body: JSON.stringify(payload) }),
@@ -80,23 +139,13 @@ export const shares = {
     request<{ data: Share }>(`/shares/${id}/revoke`, { method: "POST" }),
 };
 
-// ---- Recipient (public) ----
-const PUBLIC_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? process.env.NEXT_PUBLIC_API_URL.replace("/api/v1", "")
-  : "http://localhost:8000";
-
-export const recipient = {
-  view: (token: string) =>
-    fetch(`${PUBLIC_BASE}/view/${token}`).then((r) => r.json()),
-};
-
-// ---- Analytics ----
+// ─── Analytics ────────────────────────────────────────────────────────────────
 export const analytics = {
   workspace: () => request<{ data: WorkspaceAnalytics }>("/workspaces/me/analytics"),
   share: (id: string) => request<{ data: ShareAnalytics }>(`/shares/${id}/analytics`),
 };
 
-// ---- Types ----
+// ─── Types ────────────────────────────────────────────────────────────────────
 export interface Dataset {
   id: string;
   original_filename: string;
@@ -107,9 +156,9 @@ export interface Dataset {
 
 export interface DatasetRow {
   id: string;
+  dataset_id: string;
   row_index: number;
   row_data: Record<string, string>;
-  photo_url?: string;
 }
 
 export interface Share {

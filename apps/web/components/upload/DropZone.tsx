@@ -165,19 +165,31 @@ export function DropZone({ onFile, state, progress, fileName, errorMessage }: Dr
         <div className="h-px flex-1 bg-white/[0.06]" />
       </div>
 
-      <button
-        onClick={() => {
-          const demoFile = new File(
-            ["Name,Department,Email,Photo,Title\nAisha Rahman,Engineering,aisha.rahman@example.com,https://i.pravatar.cc/150?img=1,Senior Engineer\nDaniel Okoro,Sales,daniel.okoro@example.com,https://i.pravatar.cc/150?img=2,Account Executive\nMei Lin,Engineering,mei.lin@example.com,https://i.pravatar.cc/150?img=3,Staff Engineer\nCarlos Rivera,Design,carlos.rivera@example.com,https://i.pravatar.cc/150?img=4,Product Designer\nPriya Nair,Engineering,priya.nair@example.com,https://i.pravatar.cc/150?img=7,Engineering Manager\nSamuel Green,Marketing,samuel.green@example.com,https://i.pravatar.cc/150?img=8,Growth Lead\nFatima Al-Zahra,HR,fatima@example.com,https://i.pravatar.cc/150?img=9,People Ops\nTomás Herrera,Sales,tomas@example.com,https://i.pravatar.cc/150?img=10,Sales Director"],
-            "employees.csv",
-            { type: "text/csv" }
-          );
-          onFile(demoFile);
-        }}
-        className="mt-3 text-sm text-[#00E6A7] hover:text-[#00E6A7]/80 transition-colors font-medium"
-      >
-        Load employees.csv demo
-      </button>
+      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2">
+        <button
+          onClick={() => {
+            const demoFile = new File(
+              ["Name,Department,Email,Photo,Title\nAisha Rahman,Engineering,aisha.rahman@example.com,https://i.pravatar.cc/150?img=1,Senior Engineer\nDaniel Okoro,Sales,daniel.okoro@example.com,https://i.pravatar.cc/150?img=2,Account Executive\nMei Lin,Engineering,mei.lin@example.com,https://i.pravatar.cc/150?img=3,Staff Engineer\nCarlos Rivera,Design,carlos.rivera@example.com,https://i.pravatar.cc/150?img=4,Product Designer\nPriya Nair,Engineering,priya.nair@example.com,https://i.pravatar.cc/150?img=7,Engineering Manager\nSamuel Green,Marketing,samuel.green@example.com,https://i.pravatar.cc/150?img=8,Growth Lead\nFatima Al-Zahra,HR,fatima@example.com,https://i.pravatar.cc/150?img=9,People Ops\nTomás Herrera,Sales,tomas@example.com,https://i.pravatar.cc/150?img=10,Sales Director"],
+              "employees.csv",
+              { type: "text/csv" }
+            );
+            onFile(demoFile);
+          }}
+          className="text-sm text-[#00E6A7] hover:text-[#00E6A7]/80 transition-colors font-medium"
+        >
+          employees.csv (8 rows)
+        </button>
+        <span className="text-[#9CA3AF]/40">·</span>
+        <button
+          onClick={() => {
+            const csv = "Name,Department,Title,Email,Location,Status,Salary\nSarah Johnson,Engineering,Senior Engineer,sarah.j@company.com,New York,Active,120000\nMarcus Chen,Design,Lead Designer,m.chen@company.com,San Francisco,Active,115000\nPriya Patel,Engineering,Staff Engineer,p.patel@company.com,London,Active,130000\nDiego Torres,Sales,Account Executive,d.torres@company.com,Madrid,Active,95000\nEmma Wilson,HR,People Ops Lead,e.wilson@company.com,London,Active,90000\nJames Kim,Engineering,Junior Engineer,j.kim@company.com,New York,Active,85000\nAisha Okonkwo,Marketing,Growth Lead,a.okonkwo@company.com,Lagos,Remote,100000\nTom Bradley,Sales,Sales Director,t.bradley@company.com,New York,Active,140000\nLisa Park,Design,UX Researcher,l.park@company.com,San Francisco,Active,105000\nCarlos Rivera,Engineering,Engineering Manager,c.rivera@company.com,New York,Active,150000\nSarah Johnson,Engineering,Senior Engineer,sarah.j@company.com,New York,Active,120000\nNina Volkov,Finance,Financial Analyst,n.volkov@company.com,Berlin,Active,95000";
+            onFile(new File([csv], "team_directory.csv", { type: "text/csv" }));
+          }}
+          className="text-sm text-[#5BE7FF] hover:text-[#5BE7FF]/80 transition-colors font-medium"
+        >
+          team_directory.csv (12 rows)
+        </button>
+      </div>
 
       {/* Recent uploads */}
       {state === "idle" && (
