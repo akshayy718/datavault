@@ -14,10 +14,11 @@ interface ViewData {
     | { kind: "multi";  items: Record<string, string>[] };
 }
 
-// Reads the backend URL from environment variable so it works in both
-// local development (localhost:8000) and production (your Render URL).
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1")
-  .replace("/api/v1", "");
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL
+  ? process.env.NEXT_PUBLIC_API_URL.replace("/api/v1", "")
+  : (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "https://datavault-api-w0sn.onrender.com"
+    : "http://localhost:8000");
 
 // ─── Data fetching hook ───────────────────────────────────────────────────────
 function useViewData(token: string) {
