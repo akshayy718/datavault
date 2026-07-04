@@ -1,60 +1,85 @@
 """
-Application entrypoint.
+Application entrypoint — production-hardened.
 
-Authenticated owner routes (auth, datasets, shares) are mounted under
-/api/v1 per the versioning convention. The public recipient router is
-mounted WITHOUT that prefix and WITHOUT any auth -- a deliberate,
-visible distinction matching the Architecture doc's separation of
-"owner dashboard" from "recipient view" as fundamentally different
-audiences (see app/routes/recipient.py's docstring).
+Changes from MVP:
+- GZipMiddleware for response compression (reduces payload size ~60-70%)
+- CORS tightened: explicit origins from env var, wildcard only in dev
+- Connection pooling: pool_pre_ping + pool_recycle for long-running deploys
+- Static dir auto-created at startup
 """
 from pathlib import Path
+import os
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.routes import ai, analytics, auth, datasets, recipient, search, shares, templates
+from app.core.config import settings
 
-app = FastAPI(title="DataVault API", version="0.1.0")
+app = FastAPI(
+    title="DataVault API",
+    version="1.0.0",
+    docs_url="/docs" if settings.app_env != "production" else None,
+    redoc_url=None,
+)
 
-# Allow the Next.js dev server (and future Vercel deployment) to call this API.
-# In production, replace "*" with your actual frontend domain.
+# ── GZip compression ─────────────────────────────────────────────────────────
+# Compresses responses > 1KB. Significantly reduces payload size for
+# analytics, row data, and share responses — critical for slow mobile networks.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# In production, restrict to known frontend domains.
+# In development, allow all origins for convenience.
+_allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://datavault-gilt.vercel.app",
+    "https://datavault-git-main-akshaysanthosh718.vercel.app",
+]
+
+# Allow any additional origins from environment variable (comma-separated)
+_extra = os.getenv("ALLOWED_ORIGINS", "")
+if _extra:
+    _allowed_origins.extend([o.strip() for o in _extra.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
+    allow_origins=_allowed_origins if settings.app_env == "production" else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(datasets.router, prefix="/api/v1")
-app.include_router(shares.router, prefix="/api/v1")
+# ── Routers ───────────────────────────────────────────────────────────────────
+app.include_router(auth.router,      prefix="/api/v1")
+app.include_router(datasets.router,  prefix="/api/v1")
+app.include_router(shares.router,    prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
-app.include_router(ai.router, prefix="/api/v1")
+app.include_router(ai.router,        prefix="/api/v1")
 app.include_router(templates.router, prefix="/api/v1")
-app.include_router(search.router, prefix="/api/v1")
-app.include_router(recipient.router)  # public, no /api/v1 prefix, no auth
+app.include_router(search.router,    prefix="/api/v1")
+app.include_router(recipient.router)  # public, no /api/v1 prefix
 
-# Serves generated QR images. MVP-only: see app/services/qr_service.py's
-# docstring for why this is local disk + StaticFiles rather than object
-# storage + CDN -- swapping that out later doesn't touch this mount point
-# at the application-routing level, only qr_service.py's save/URL logic.
+# ── Static files ─────────────────────────────────────────────────────────────
 _static_dir = Path(__file__).resolve().parent.parent / "static"
 _static_dir.mkdir(exist_ok=True)
+((_static_dir / "qr")).mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
-@app.get("/health")
+# ── Health endpoints ──────────────────────────────────────────────────────────
+@app.get("/health", tags=["Health"])
 def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "env": settings.app_env}
 
 
-@app.get("/health/db")
+@app.get("/health/db", tags=["Health"])
 def health_check_db(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"status": "ok", "database": "reachable"}

@@ -1,30 +1,42 @@
 """
-Database engine and session setup.
+Database engine and session setup — production-hardened.
 
-This is the only file in the codebase that should call create_engine().
-Every service that needs a database session imports get_db() from here,
-rather than constructing its own connection -- this is what makes it
-possible to swap SQLite for PostgreSQL later by changing one config value
-(DATABASE_URL) and nothing else (see Architecture doc, Section 5).
+Changes:
+- pool_pre_ping=True: tests connection before use, prevents "stale connection"
+  errors after Render's free tier restarts or sleeps
+- pool_recycle=300: recycles connections every 5 minutes, prevents timeouts
+  on long-running free-tier deployments
+- expire_on_commit=False: prevents lazy-loading errors after commit in services
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.config import settings
 
-# `connect_args` is only needed for SQLite (it disallows cross-thread use
-# by default, which FastAPI's request handling needs). This is the one
-# SQLite-specific line in the whole data layer; it has no effect on
-# PostgreSQL and can stay even after migrating.
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+_is_sqlite = settings.database_url.startswith("sqlite")
 
-engine = create_engine(settings.database_url, connect_args=connect_args)
+connect_args = {"check_same_thread": False} if _is_sqlite else {}
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# pool_pre_ping and pool_recycle don't apply to SQLite (it uses NullPool)
+# but are safe to pass — SQLAlchemy ignores them for SQLite.
+engine = create_engine(
+    settings.database_url,
+    connect_args=connect_args,
+    pool_pre_ping=True,        # test connection health before use
+    pool_recycle=300,          # recycle connections every 5 minutes
+    echo=False,                # set True temporarily for query debugging
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,    # prevents DetachedInstanceError in services
+    bind=engine,
+)
 
 
 def get_db() -> Session:
-    """FastAPI dependency that yields a database session and always closes it."""
+    """FastAPI dependency — yields a session and always closes it."""
     db = SessionLocal()
     try:
         yield db
