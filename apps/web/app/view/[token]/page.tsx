@@ -440,29 +440,25 @@ export default function RecipientPage({ params }: RecipientPageProps) {
                 <p className="mt-1.5 text-sm text-[#9CA3AF]">This share is protected. Enter the PIN to continue.</p>
               </div>
 
-              {/* PIN form — no <form> tag to avoid iPhone Safari keyboard/submit quirks.
-                  We use onClick on the button instead of onSubmit on the form. */}
               <div className="space-y-3">
+                {/* Uncontrolled input — typing does NOT trigger React re-renders.
+                    This makes the keyboard instant on mobile. */}
                 <input
                   ref={pinRef}
-                  type="number"
+                  type="tel"
                   inputMode="numeric"
-                  pattern="[0-9]*"
                   placeholder="Enter PIN"
-                  maxLength={8}
-                  disabled={unlocking}
-                  className="h-14 w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 text-center text-lg tracking-widest text-white placeholder:text-[#9CA3AF]/30 focus:border-[#00E6A7]/50 focus:outline-none focus:ring-2 focus:ring-[#00E6A7]/15 transition-all disabled:opacity-60"
+                  className="h-14 w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 text-center text-lg tracking-widest text-white placeholder:text-[#9CA3AF]/30 focus:border-[#00E6A7]/50 focus:outline-none focus:ring-2 focus:ring-[#00E6A7]/15 transition-all"
                 />
+
                 {pinError && (
                   <p className="text-sm text-red-400 text-center">{pinError}</p>
                 )}
 
-                {/* Big touchable unlock button — no form submit, just onClick.
-                    Shows a spinner and "Verifying..." text while waiting for the server. */}
                 <button
-                  onClick={handleUnlock as unknown as React.MouseEventHandler}
+                  onClick={() => handleUnlock()}
                   disabled={unlocking}
-                  className="h-14 w-full rounded-2xl bg-[#00E6A7] text-[#08090A] font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="h-14 w-full rounded-2xl bg-[#00E6A7] text-[#08090A] font-semibold text-base flex items-center justify-center gap-2 disabled:opacity-60"
                 >
                   {unlocking ? (
                     <>
@@ -477,13 +473,12 @@ export default function RecipientPage({ params }: RecipientPageProps) {
                   )}
                 </button>
 
-                {/* Show this message after a few seconds so user knows it's not frozen */}
                 {unlocking && (
                   <motion.p
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 4 }}
                     className="text-xs text-[#9CA3AF] text-center"
                   >
-                    Checking your PIN — the server may take a moment...
+                    Checking your PIN — please wait...
                   </motion.p>
                 )}
               </div>
