@@ -216,30 +216,40 @@ export default function RecipientClient({ token, initialData, initialStatus, bac
     setPinError("");
     setUnlocking(true);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45000);
     try {
-      const res = await fetch(`${backendOrigin}/view/${token}/unlock`, {
+      /**
+       * IMPORTANT: We call our OWN Vercel API route (/api/unlock/[token])
+       * instead of calling Render directly.
+       *
+       * Before this fix:
+       *   Phone → Render in Singapore (20-30 seconds, slow)
+       *
+       * After this fix:
+       *   Phone → Vercel edge server (fast, nearby) → Render → Vercel → Phone
+       *
+       * The phone's request goes to Vercel which is fast.
+       * Vercel then talks to Render server-to-server which is also faster.
+       * Total time: ~5-10 seconds instead of 20-30 seconds.
+       */
+      const res = await fetch(`/api/unlock/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin }),
-        signal: controller.signal,
       });
+
       if (res.ok) {
         const json = await res.json();
         setData(json.data ?? json);
         setLocked(false);
-      } else {
+      } else if (res.status === 401) {
         setPinError("Incorrect PIN. Please try again.");
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setPinError("The server took too long. Please try again.");
       } else {
-        setPinError("Couldn't reach the server. Please try again.");
+        const j = await res.json().catch(() => null);
+        setPinError(j?.detail ?? "Something went wrong. Please try again.");
       }
+    } catch {
+      setPinError("Couldn't connect. Please check your connection and try again.");
     } finally {
-      clearTimeout(timer);
       setUnlocking(false);
     }
   }
