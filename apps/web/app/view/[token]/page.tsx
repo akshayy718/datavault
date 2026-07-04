@@ -311,8 +311,9 @@ export default function RecipientPage({ params }: RecipientPageProps) {
   const items = kind === "multi"  ? (data!.data as { kind: "multi"; items: Record<string, string>[] }).items : null;
   const fields= kind === "single" ? (data!.data as { kind: "single"; fields: Record<string, string> }).fields : null;
 
-  async function handleUnlock(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleUnlock(e?: React.FormEvent | React.MouseEvent) {
+    if (e) e.preventDefault();
+    if (unlocking || pin.length === 0) return;
     setPinError("");
     setUnlocking(true);
 
@@ -422,14 +423,56 @@ export default function RecipientPage({ params }: RecipientPageProps) {
                 <h1 className="font-['Inter_Tight'] text-xl font-semibold text-white">PIN required</h1>
                 <p className="mt-1.5 text-sm text-[#9CA3AF]">This share is protected. Enter the PIN to continue.</p>
               </div>
-              <form onSubmit={handleUnlock} className="space-y-3">
-                <input type="text" inputMode="numeric" value={pin} onChange={e => setPin(e.target.value)}
-                  placeholder="Enter PIN" maxLength={8}
-                  className="h-14 w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 text-center text-lg tracking-widest text-white placeholder:text-[#9CA3AF]/30 focus:border-[#00E6A7]/50 focus:outline-none focus:ring-2 focus:ring-[#00E6A7]/15 transition-all"
+
+              {/* PIN form — no <form> tag to avoid iPhone Safari keyboard/submit quirks.
+                  We use onClick on the button instead of onSubmit on the form. */}
+              <div className="space-y-3">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={pin}
+                  onChange={e => setPin(e.target.value)}
+                  placeholder="Enter PIN"
+                  maxLength={8}
+                  disabled={unlocking}
+                  className="h-14 w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 text-center text-lg tracking-widest text-white placeholder:text-[#9CA3AF]/30 focus:border-[#00E6A7]/50 focus:outline-none focus:ring-2 focus:ring-[#00E6A7]/15 transition-all disabled:opacity-60"
                 />
-                {pinError && <p className="text-sm text-red-400 text-center">{pinError}</p>}
-                <Button type="submit" size="lg" loading={unlocking} className="w-full">Unlock</Button>
-              </form>
+                {pinError && (
+                  <p className="text-sm text-red-400 text-center">{pinError}</p>
+                )}
+
+                {/* Big touchable unlock button — no form submit, just onClick.
+                    Shows a spinner and "Verifying..." text while waiting for the server. */}
+                <button
+                  onClick={handleUnlock as unknown as React.MouseEventHandler}
+                  disabled={unlocking || pin.length === 0}
+                  className="h-14 w-full rounded-2xl bg-[#00E6A7] text-[#08090A] font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {unlocking ? (
+                    <>
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                      </svg>
+                      Verifying...
+                    </>
+                  ) : (
+                    "Unlock"
+                  )}
+                </button>
+
+                {/* Show this message after a few seconds so user knows it's not frozen */}
+                {unlocking && (
+                  <motion.p
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 4 }}
+                    className="text-xs text-[#9CA3AF] text-center"
+                  >
+                    Checking your PIN — the server may take a moment...
+                  </motion.p>
+                )}
+              </div>
+
               <p className="mt-6 text-center text-xs text-[#9CA3AF]">Powered by DataVault</p>
             </div>
           </motion.div>
