@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, CheckCircle2, ExternalLink, Share2, Bookmark, BookmarkCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -300,7 +300,15 @@ interface RecipientPageProps {
 
 export default function RecipientPage({ params }: RecipientPageProps) {
   const { data, loading, locked, setLocked, setData, errorMsg, slowWarning, retry } = useViewData(params.token);
-  const [pin, setPin]           = useState("");
+
+  // PIN input uses a ref instead of useState.
+  // Why: with useState, every single keypress triggers React to re-render
+  // the ENTIRE page. On a phone with limited RAM, this causes the keyboard
+  // lag you experienced (numbers appearing 10 seconds late, page hanging).
+  // With useRef, the input manages its own value directly in the DOM —
+  // React is never involved while you type, so the keyboard stays instant.
+  const pinRef = useRef<HTMLInputElement>(null);
+
   const [pinError, setPinError] = useState("");
   const [unlocking, setUnlocking] = useState(false);
   const [saved, setSaved]       = useState(false);
@@ -313,7 +321,15 @@ export default function RecipientPage({ params }: RecipientPageProps) {
 
   async function handleUnlock(e?: React.FormEvent | React.MouseEvent) {
     if (e) e.preventDefault();
-    if (unlocking || pin.length === 0) return;
+    if (unlocking) return;
+
+    // Read PIN directly from the input element — no React state involved
+    const pin = pinRef.current?.value ?? "";
+    if (pin.length === 0) {
+      setPinError("Please enter your PIN.");
+      return;
+    }
+
     setPinError("");
     setUnlocking(true);
 
@@ -428,11 +444,10 @@ export default function RecipientPage({ params }: RecipientPageProps) {
                   We use onClick on the button instead of onSubmit on the form. */}
               <div className="space-y-3">
                 <input
+                  ref={pinRef}
                   type="number"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  value={pin}
-                  onChange={e => setPin(e.target.value)}
                   placeholder="Enter PIN"
                   maxLength={8}
                   disabled={unlocking}
@@ -446,7 +461,7 @@ export default function RecipientPage({ params }: RecipientPageProps) {
                     Shows a spinner and "Verifying..." text while waiting for the server. */}
                 <button
                   onClick={handleUnlock as unknown as React.MouseEventHandler}
-                  disabled={unlocking || pin.length === 0}
+                  disabled={unlocking}
                   className="h-14 w-full rounded-2xl bg-[#00E6A7] text-[#08090A] font-semibold text-base transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {unlocking ? (
