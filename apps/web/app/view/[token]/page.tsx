@@ -19,7 +19,7 @@ import RecipientClient from "./RecipientClient";
 // The backend origin — used by the SERVER to fetch share data.
 // This must be the actual Render URL, never localhost.
 const BACKEND_ORIGIN = (
-  process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-w0sn.onrender.com/api/v1"
+  process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-3j82.onrender.com/api/v1"
 ).replace("/api/v1", "");
 
 // ─── Server-side data fetch ───────────────────────────────────────────────────

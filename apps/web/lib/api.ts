@@ -2,7 +2,7 @@
 // If the variable wasn't set when Vercel built the app, it becomes undefined.
 // We hardcode the production URL as the fallback so it always works
 // regardless of whether the env var was set during the Vercel build.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-w0sn.onrender.com/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://datavault-api-3j82.onrender.com/api/v1";
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 export function getToken(): string | null {
