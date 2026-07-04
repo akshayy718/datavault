@@ -75,6 +75,7 @@ app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 # ── Health endpoints ──────────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
+@app.head("/health", tags=["Health"])
 def health_check():
     return {"status": "ok", "env": settings.app_env}
 
