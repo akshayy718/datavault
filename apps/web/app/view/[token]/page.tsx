@@ -23,11 +23,32 @@ function useViewData(token: string) {
   const [loading, setLoading] = useState(true);
   const [locked, setLocked]   = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [slowWarning, setSlowWarning] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Lets the user manually retry if the request failed or timed out.
+  function retry() {
+    setErrorMsg(null);
+    setLoading(true);
+    setSlowWarning(false);
+    setReloadKey(k => k + 1);
+  }
 
   useEffect(() => {
+    // "AbortController" lets us cancel a fetch that takes too long.
+    // Without this, a slow server can leave the phone waiting forever.
+    const controller = new AbortController();
+
+    // After 6 seconds of waiting, show a friendly "server is waking up" note
+    // so the user knows the app isn't frozen — it's just a slow free server.
+    const slowTimer = setTimeout(() => setSlowWarning(true), 6000);
+
+    // After 45 seconds, give up and show a retry button instead of hanging.
+    const abortTimer = setTimeout(() => controller.abort(), 45000);
+
     async function load() {
       try {
-        const res = await fetch(`${API_ORIGIN}/view/${token}`);
+        const res = await fetch(`${API_ORIGIN}/view/${token}`, { signal: controller.signal });
         if (res.ok) {
           const json = await res.json();
           setData(json.data ?? json);
@@ -41,15 +62,31 @@ function useViewData(token: string) {
           const j = await res.json().catch(() => null);
           setErrorMsg(j?.detail ?? "Something went wrong loading this share.");
         }
-      } catch {
-        setErrorMsg("Couldn't reach the server. Please check your connection.");
+      } catch (err) {
+        // A timeout (abort) or network failure both land here.
+        if (err instanceof Error && err.name === "AbortError") {
+          setErrorMsg("The server is taking too long to respond. It may be waking up — please try again.");
+        } else {
+          setErrorMsg("Couldn't reach the server. Please check your connection and try again.");
+        }
+      } finally {
+        clearTimeout(slowTimer);
+        clearTimeout(abortTimer);
+        setLoading(false);
+        setSlowWarning(false);
       }
-      setLoading(false);
     }
     load();
-  }, [token]);
 
-  return { data, loading, locked, setLocked, setData, errorMsg };
+    // Cleanup if the component unmounts mid-request
+    return () => {
+      clearTimeout(slowTimer);
+      clearTimeout(abortTimer);
+      controller.abort();
+    };
+  }, [token, reloadKey]);
+
+  return { data, loading, locked, setLocked, setData, errorMsg, slowWarning, retry };
 }
 
 // ─── Single-row card ──────────────────────────────────────────────────────────
@@ -262,7 +299,7 @@ interface RecipientPageProps {
 }
 
 export default function RecipientPage({ params }: RecipientPageProps) {
-  const { data, loading, locked, setLocked, setData, errorMsg } = useViewData(params.token);
+  const { data, loading, locked, setLocked, setData, errorMsg, slowWarning, retry } = useViewData(params.token);
   const [pin, setPin]           = useState("");
   const [pinError, setPinError] = useState("");
   const [unlocking, setUnlocking] = useState(false);
@@ -278,11 +315,18 @@ export default function RecipientPage({ params }: RecipientPageProps) {
     e.preventDefault();
     setPinError("");
     setUnlocking(true);
+
+    // Give the unlock request a 45-second limit so the page never appears
+    // frozen while typing/submitting the PIN on a slow connection.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45000);
+
     try {
       const res = await fetch(`${API_ORIGIN}/view/${params.token}/unlock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin }),
+        signal: controller.signal,
       });
       if (res.ok) {
         const json = await res.json();
@@ -291,10 +335,16 @@ export default function RecipientPage({ params }: RecipientPageProps) {
       } else {
         setPinError("Incorrect PIN. Please try again.");
       }
-    } catch {
-      setPinError("Couldn't reach the server. Please try again.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setPinError("The server took too long. Please try again.");
+      } else {
+        setPinError("Couldn't reach the server. Please try again.");
+      }
+    } finally {
+      clearTimeout(timer);
+      setUnlocking(false);
     }
-    setUnlocking(false);
   }
 
   function copyLink() {
@@ -317,11 +367,20 @@ export default function RecipientPage({ params }: RecipientPageProps) {
         {loading && (
           <motion.div key="loading"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-1 flex-col items-center justify-center min-h-screen gap-4"
+            className="flex flex-1 flex-col items-center justify-center min-h-screen gap-4 px-6 text-center"
           >
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
               className="h-8 w-8 rounded-full border-2 border-[#00E6A7]/20 border-t-[#00E6A7]" />
             <p className="text-sm text-[#9CA3AF]">Loading experience...</p>
+            {/* Shown only after 6 seconds, so the user knows it's a slow server, not a frozen page */}
+            {slowWarning && (
+              <motion.p
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="text-xs text-[#9CA3AF]/70 max-w-xs"
+              >
+                The server is waking up — this can take up to a minute on the first visit. Thanks for your patience.
+              </motion.p>
+            )}
           </motion.div>
         )}
 
@@ -337,6 +396,13 @@ export default function RecipientPage({ params }: RecipientPageProps) {
               </div>
               <h1 className="font-['Inter_Tight'] text-xl font-semibold text-white">Unavailable</h1>
               <p className="mt-2 text-sm text-[#9CA3AF]">{errorMsg}</p>
+              {/* Retry button — lets the user try again without reloading the whole page */}
+              <button
+                onClick={retry}
+                className="mt-5 rounded-xl bg-[#00E6A7] px-5 py-2.5 text-sm font-medium text-[#08090A] hover:bg-[#00E6A7]/90 transition-colors"
+              >
+                Try again
+              </button>
               <p className="mt-6 text-xs text-[#9CA3AF]">Powered by DataVault</p>
             </div>
           </motion.div>
