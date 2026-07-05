@@ -169,6 +169,8 @@ UptimeRobot — Health monitoring, 5-min ping interval
 GitHub   — Version control, auto-deploy triggers
 ```
 
+> ⚠️ **Hosting note:** Free tier — first load ~30s cold start. No-PIN shares load instantly after wake-up due to **SSR** (Vercel fetches data server-side). PIN-protected shares take 20-30s total — two server round-trips to Render. Free-tier infrastructure limitation, not a code issue.
+
 ---
 
 ## ✦ Real Bugs Found and Fixed
