@@ -59,36 +59,38 @@ Upload a CSV. Select the data you want to share. Generate a QR code. Anyone who 
 
 ---
 
-## ✦ Architecture
+## 🏗️ Architecture
 
+```mermaid
+flowchart LR
+    A["🧑 You\n(Browser)"] -->|"Upload CSV"| B["📊 Dashboard\n(Next.js 14)"]
+    B -->|"API calls"| C["⚡ FastAPI Backend\n(Python + SQLAlchemy)"]
+    C -->|"Read/Write"| D[("🗄️ PostgreSQL\n(Render DB)")]
+    C -->|"Generate"| E["📱 QR Code PNG\n(/static/qr/)"]
+    C -->|"AI queries"| F["🤖 Groq AI\n(Llama 3.3 70B)"]
+    B -->|"SSR fetch"| G["🌍 Vercel Server\n(Edge Network)"]
+    G -->|"Server-to-server"| C
+    G -->|"Complete HTML"| H["📲 Recipient Phone\n(Any browser)"]
+
+    style A fill:#1a1a2e,stroke:#00E6A7,color:#fff
+    style B fill:#0E0F11,stroke:#00E6A7,color:#00E6A7
+    style C fill:#0E0F11,stroke:#5BE7FF,color:#5BE7FF
+    style D fill:#0E0F11,stroke:#A78BFA,color:#A78BFA
+    style E fill:#0E0F11,stroke:#00E6A7,color:#fff
+    style F fill:#0E0F11,stroke:#F59E0B,color:#F59E0B
+    style G fill:#0E0F11,stroke:#00E6A7,color:#00E6A7
+    style H fill:#1a1a2e,stroke:#00E6A7,color:#fff
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      VERCEL (CDN)                        │
-│                                                         │
-│   Next.js 14 App Router  ·  TypeScript  ·  Tailwind     │
-│   Framer Motion  ·  Server Side Rendering (SSR)         │
-│                                                         │
-│   /dashboard  /share  /view/[token]  /analytics         │
-└────────────────────────┬────────────────────────────────┘
-                         │ HTTPS
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│                   RENDER (Singapore)                     │
-│                                                         │
-│   FastAPI 0.115  ·  Uvicorn  ·  SQLAlchemy 2.0          │
-│   Alembic  ·  PyJWT  ·  bcrypt  ·  qrcode+Pillow        │
-│   GZip Middleware  ·  CORS  ·  Connection Pooling        │
-│                                                         │
-│   45 API Endpoints  ·  9 Backend Modules                │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│              RENDER PostgreSQL (Singapore)               │
-│   Users · Datasets · Shares · Snapshots · Analytics     │
-│   6 Alembic Migrations  ·  Full Relational Schema       │
-└─────────────────────────────────────────────────────────┘
-```
+
+**Two independently deployed services:**
+
+| Layer | Where it runs | What it does |
+|-------|--------------|-------------|
+| Frontend + SSR | Vercel (`apps/web`) | Next.js UI, server-side rendering, PIN proxy |
+| Backend API | Render (`apps/api`) | FastAPI, business logic, QR generation, auth |
+| Database | Render PostgreSQL | Users, datasets, shares, analytics |
+
+> The recipient page uses **Server-Side Rendering** — Vercel's server fetches data from the backend and sends a complete page to the phone. The phone never makes a slow direct request to Render.
 
 ---
 
