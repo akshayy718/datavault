@@ -374,7 +374,7 @@ datavault/
 
 **Akshay Santhosh** — AI/ML Engineer · SAP BTP Developer · Full Stack
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Akshay_Santhosh-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/akshay-santhosh)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Akshay_Santhosh-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/akshay-santhosh-435499208)
 [![GitHub](https://img.shields.io/badge/GitHub-akshayy718-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/akshayy718)
 [![Gmail](https://img.shields.io/badge/Gmail-akshaysanthosh718-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:akshaysanthosh718@gmail.com)
 [![Portfolio](https://img.shields.io/badge/Portfolio-akshay--portfolio-00E6A7?style=for-the-badge&labelColor=08090A)](https://akshay-portfolio-site-vert.vercel.app)
