@@ -23,7 +23,7 @@ export default function AuthPage() {
   }, [loading, user, router]);
 
   return (
-    <div className="min-h-screen bg-[#08090A] flex">
+    <div className="min-h-screen bg-[#08090A] flex flex-col lg:flex-row">
       {/* ── Left panel ── */}
       <div className="hidden lg:flex flex-col relative overflow-hidden" style={{ width: "58%" }}>
         {/* Subtle grid */}
@@ -110,12 +110,13 @@ export default function AuthPage() {
       </div>
 
       {/* ── Right panel (auth card) ── */}
-      <div className="flex items-center justify-center p-8 sm:p-16" style={{width:"42%"}}>
+      {/* On mobile: full width. On desktop: 42% fixed */}
+      <div className="flex flex-1 lg:flex-none lg:w-[42%] items-center justify-center p-6 sm:p-10 lg:p-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-[400px]"
+          className="w-full max-w-sm sm:max-w-[400px]"
         >
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
